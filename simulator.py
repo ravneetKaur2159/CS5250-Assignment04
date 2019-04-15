@@ -61,6 +61,9 @@ def RR_scheduling(process_list, time_quantum ):
                                                                                           process_killed, indices_added_till_now)
         process_killed = False
 
+        if len(current_wait_queue) == 0:
+            average_waiting_time = waiting_time / float(len(process_list))
+            return schedule, average_waiting_time
         current_process_index = current_wait_queue[0]
         current_process = RR_process_list[current_process_index]
         current_wait_queue.pop(0)
@@ -96,20 +99,14 @@ def RR_wait_queue_creation(current_wait_queue, RR_process_list, current_process_
     if running_queue_timestamp[-1] == 0:
         current_wait_queue.append(current_process_index)
         indices_added_till_now = 0
-    elif len(current_wait_queue) == 0 and RR_process_list[indices_added_till_now+1] and\
-            running_queue_timestamp[-1] < RR_process_list[indices_added_till_now+1].arrive_time:
-        x = indices_added_till_now+1
-        current_wait_queue.append(x)
-        indices_added_till_now = x if indices_added_till_now < x else indices_added_till_now
-        running_queue_timestamp.append(RR_process_list[x].arrive_time)
+    
     else:
         # Adding processes in queue
         for process_indices in range(current_process_index, len(RR_process_list)):
             x = process_indices + 1
-            if not x >= len(RR_process_list):
-                if  RR_process_list[x].arrive_time <= running_queue_timestamp[-1] and x not in current_wait_queue and x >= indices_added_till_now:
-                    current_wait_queue.append(x)
-                    indices_added_till_now = x if indices_added_till_now < x else indices_added_till_now
+            if  RR_process_list[x].arrive_time <= running_queue_timestamp[-1] and x not in current_wait_queue and x >= indices_added_till_now:
+                current_wait_queue.append(x)
+                indices_added_till_now = x if indices_added_till_now < x else indices_added_till_now
 
             else:
                 if not process_killed:
