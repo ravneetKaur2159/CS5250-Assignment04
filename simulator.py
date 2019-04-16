@@ -55,11 +55,12 @@ def RR_scheduling(process_list, time_quantum ):
     process_killed = False
     indices_added_till_now = None
     running_queue_timestamp.append(0)
-
+    prev_process_index = -1
+    RR_process_list_not_added = RR_process_list.copy()
     while count < len(RR_process_list):
-        current_wait_queue, indices_added_till_now, running_queue_timestamp = RR_wait_queue_creation(current_wait_queue, RR_process_list,
-                                                                                          current_process_index, running_queue_timestamp,
-                                                                                          process_killed, indices_added_till_now)
+        current_wait_queue, indices_added_till_now, running_queue_timestamp, RR_process_list_not_added = \
+            RR_wait_queue_creation(current_wait_queue, RR_process_list_not_added, RR_process_list, current_process_index, running_queue_timestamp,
+                                   process_killed, indices_added_till_now)
         process_killed = False
 
         if len(current_wait_queue) == 0:
@@ -73,8 +74,9 @@ def RR_scheduling(process_list, time_quantum ):
             unique_item = True
 
         running_queue.append(current_process_index)
-        #print((running_queue_timestamp[-1], current_process.id))
-        schedule.append((running_queue_timestamp[-1], current_process.id))
+        if prev_process_index != current_process_index:
+            print((running_queue_timestamp[-1], current_process.id))
+            schedule.append((running_queue_timestamp[-1], current_process.id))
 
         if current_process.burst_time <= time_quantum:
             running_queue_timestamp.append(running_queue_timestamp[-1] + current_process.burst_time)
@@ -85,6 +87,7 @@ def RR_scheduling(process_list, time_quantum ):
             running_queue_timestamp.append(running_queue_timestamp[-1] + time_quantum)
             current_process.burst_time = current_process.burst_time - time_quantum
 
+        prev_process_index = current_process.index
 
         # Added for the first time
         if unique_item:
@@ -94,34 +97,43 @@ def RR_scheduling(process_list, time_quantum ):
     average_waiting_time = waiting_time / float(len(process_list))
     return schedule, average_waiting_time
 
-def RR_wait_queue_creation(current_wait_queue, RR_process_list, current_process_index,
+def RR_wait_queue_creation(current_wait_queue, RR_process_list_not_added, RR_process_list, current_process_index,
                            running_queue_timestamp, process_killed, indices_added_till_now):
     # First run - process now added to wait queue
     if running_queue_timestamp[-1] == 0:
         current_wait_queue.append(current_process_index)
         indices_added_till_now = 0
+        RR_process_list_not_added.pop(current_process_index)
     else:
         # Adding processes in queue
-        for process_indices in range(current_process_index, len(RR_process_list)):
-            x = process_indices + 1
-            if  RR_process_list[x].arrive_time <= running_queue_timestamp[-1] and x not in current_wait_queue and x >= indices_added_till_now:
-                current_wait_queue.append(x)
-                indices_added_till_now = x if indices_added_till_now < x else indices_added_till_now
-
-            elif len(current_wait_queue) == 0 and RR_process_list[current_process_index].burst_time == 0 and \
-                    RR_process_list[indices_added_till_now+1].arrive_time > running_queue_timestamp[-1] \
-                    and (indices_added_till_now+1) not in current_wait_queue:
-                current_wait_queue.append(indices_added_till_now+1)
-                indices_added_till_now = indices_added_till_now+1
-                running_queue_timestamp.append(RR_process_list[indices_added_till_now].arrive_time)
-
+        for process in RR_process_list_not_added:
+            if process.arrive_time <= running_queue_timestamp[-1]:
+                current_wait_queue.append(process.index)
+                indices_added_till_now = process.index if indices_added_till_now < process.index else indices_added_till_now
+            elif len(current_wait_queue) == 0 \
+                    and RR_process_list_not_added[0].arrive_time > running_queue_timestamp[-1] \
+                    and RR_process_list[current_process_index].burst_time == 0:
+                current_wait_queue.append(RR_process_list_not_added[0].index)
+                indices_added_till_now = RR_process_list_not_added[0].index if \
+                    indices_added_till_now < RR_process_list_not_added[0].index else indices_added_till_now
+                running_queue_timestamp.append(RR_process_list_not_added[0].arrive_time)
             else:
                 if not process_killed:
                     current_wait_queue.append(current_process_index)
                 break
 
 
-    return current_wait_queue, indices_added_till_now, running_queue_timestamp
+        if len(RR_process_list_not_added) == 0 or len(RR_process_list_not_added) == 1:
+            if not process_killed:
+                current_wait_queue.append(current_process_index)
+
+
+        for process_index in current_wait_queue:
+            process = RR_process_list[process_index]
+            if process in RR_process_list_not_added:
+                RR_process_list_not_added.remove(process)
+
+    return current_wait_queue, indices_added_till_now, running_queue_timestamp, RR_process_list_not_added
 
 
 def SRTF_scheduling(process_list):
@@ -146,8 +158,6 @@ def SRTF_scheduling(process_list):
             if SRTF_process_list[current_process_index_to_be_executed].burst_time == 0:
                 count = count + 1
 
-
-
         running_queue_timestamp = running_queue_timestamp + 1
         if current_process_index_to_be_executed != None and prev_process_index != current_process_index_to_be_executed:
             #print((running_queue_timestamp - 1 , SRTF_process_list[current_process_index_to_be_executed].id))
@@ -159,7 +169,7 @@ def SRTF_scheduling(process_list):
             unique_elements_current_wait_queue =  list(set(current_wait_queue))
             if running_queue.count(SRTF_process_list[current_process_index_to_be_executed].id) == 1:
                 waiting_time = waiting_time + (running_queue_timestamp-1 - SRTF_process_list[current_process_index_to_be_executed].arrive_time)
-                print("waiting time",waiting_time)
+                #print("waiting time",waiting_time)
             else:
                 all_processes_burst_time_over = True
                 for processes_index in unique_elements_current_wait_queue:
